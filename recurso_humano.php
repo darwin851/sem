@@ -9,8 +9,7 @@
 		public function cargarArchivoRecursoHumano($nbrArchivo){
 
 			require 'vendor/autoload.php';
-			include('parts-admin/conexion.php');
-			$lnk=database_connect();
+			require 'cargar_datos.php';
 
 			$inputFileName = $nbrArchivo;
 			$reader = IOFactory::createReader('Xlsx');
@@ -18,9 +17,6 @@
 
 			$spreadsheet->setActiveSheetIndex(0);
 			$sheet = $spreadsheet->getActiveSheet();
-
-
-
 
 			$tablaDestino='recurso_humano';
 			$tablaDestinoPk='DOCUMENTO_IDENTIFICACION';
@@ -75,100 +71,57 @@
 					'columnaFkId' => 'ID_MUNICIPIO',
 				),
 				'L' => array(
-					'multiple' => true,
+					'tablaHija' => true,
+					'sql' => array(
+						"DELETE cargo_rol_x_recurso_humano
+							FROM cargo_rol_x_recurso_humano, recurso_humano rh, cargo_rol cr
+							WHERE 1=1
+							AND rh.DOCUMENTO_IDENTIFICACION={pk}
+							AND cr.COD_CARGO_ROL NOT IN ({ids})
+							AND cargo_rol_x_recurso_humano.ID_RECURSO_HUMANO=rh.ID_RECURSO_HUMANO
+							AND cargo_rol_x_recurso_humano.ID_CARGO_ROL=cr.ID_CARGO_ROL",
+						"INSERT INTO cargo_rol_x_recurso_humano (ID_RECURSO_HUMANO, ID_CARGO_ROL)
+							SELECT rh.ID_RECURSO_HUMANO, cr.ID_CARGO_ROL
+							FROM recurso_humano rh, cargo_rol cr
+							WHERE 1=1
+							AND rh.DOCUMENTO_IDENTIFICACION={pk}
+							AND cr.COD_CARGO_ROL IN ({ids})
+							AND NOT EXISTS (
+								SELECT 1
+								FROM cargo_rol_x_recurso_humano crrh
+								WHERE crrh.ID_RECURSO_HUMANO=rh.ID_RECURSO_HUMANO
+								AND crrh.ID_CARGO_ROL=cr.ID_CARGO_ROL
+							)",
+					),
 				),
 				'M' => array(
-					'multiple' => true,
+					'tablaHija' => true,
+					'sql' => array(
+						"DELETE especialidad_x_recurso_humano
+							FROM especialidad_x_recurso_humano, recurso_humano rh, asignatura a
+							WHERE 1=1
+							AND rh.DOCUMENTO_IDENTIFICACION={pk}
+							AND a.COD_ASIGNATURA NOT IN ({ids})
+							AND especialidad_x_recurso_humano.ID_RECURSO_HUMANO=rh.ID_RECURSO_HUMANO
+							AND especialidad_x_recurso_humano.ID_ASIGNATURA=a.ID_ASIGNATURA",
+						"INSERT INTO especialidad_x_recurso_humano (ID_RECURSO_HUMANO, ID_ASIGNATURA, TITULO_ACADEMICO)
+							SELECT rh.ID_RECURSO_HUMANO, a.ID_ASIGNATURA, ''
+							FROM recurso_humano rh, asignatura a
+							WHERE 1=1
+							AND rh.DOCUMENTO_IDENTIFICACION={pk}
+							AND a.COD_ASIGNATURA IN ({ids})
+							AND NOT EXISTS (
+								SELECT 1
+								FROM especialidad_x_recurso_humano erh
+								WHERE erh.ID_RECURSO_HUMANO=rh.ID_RECURSO_HUMANO
+								AND erh.ID_ASIGNATURA=a.ID_ASIGNATURA
+							)",
+					),
 				),
 			);
 
-			foreach ($sheet->getRowIterator() as $row){
-				$cellIterator = $row->getCellIterator();
-				$cellIterator->setIterateOnlyExistingCells(false);
-				$rowErr=false;
-				$colsFila=$valuesFila=array();
-				foreach ($cellIterator as $cell){
-					$nValue='';
-					if (!is_null($cell)){
-						$col=$cell->getColumn();
-						$row=$cell->getRow();
-						$value=$cell->getCalculatedValue();
-
-						if ($row==1) {
-							break;
-						}
-						else{
-							if (isset($configTablaDestino[$col])){
-								if (isset($configTablaDestino[$col]['columna'])){
-									if(!isset($configTablaDestino[$col]['tablaFk'])){
-										$nValue=$value;
-										if($configTablaDestino[$col]['comilla']==true){
-											$nValue="\"" . trim(str_replace('"','\'',$value)) . "\"";
-										}
-									}
-									elseif(isset($configTablaDestino[$col]['tablaFk'])){
-										$id=($configTablaDestino[$col]['columnaFkId']?
-											$configTablaDestino[$col]['columnaFkId']:
-											$configTablaDestino[$col]['columna']);
-										$tabla=$configTablaDestino[$col]['tablaFk'];
-										$cod=$configTablaDestino[$col]['columnaFkCod'];
-										$res=mysqli_query($lnk,"SELECT $id
-											FROM $tabla
-											WHERE $cod='$value'") or die(mysqli_error($lnk));
-										$reg=mysqli_fetch_assoc($res);
-										if(isset($reg[$id])){
-											$nValue=$reg[$id];
-										}
-										else{
-											$rowErr=true;
-											$textoFk=(isset($configTablaDestino[$col]['textoFk'])?
-												$configTablaDestino[$col]['textoFk']:
-												$configTablaDestino[$col]['columna']);
-											$err="- No se encontró el $textoFk correspondiente ($value)";
-											$this->arrErr[]=$err;
-											error_log($err);
-										}
-									}
-									$colsFila[]=$configTablaDestino[$col]['columna'];
-									$valuesFila[$configTablaDestino[$col]['columna']]=$nValue;
-								}
-							}
-							elseif($rowErr==false){
-								$res=mysqli_query($lnk,"SELECT IF(
-									EXISTS(
-										SELECT 1
-										FROM $tablaDestino
-										WHERE $tablaDestinoPk=$valuesFila[$tablaDestinoPk]
-									),'S','N') AS EXISTE") or die(mysqli_error($lnk));
-								$reg=mysqli_fetch_assoc($res);
-								if($reg['EXISTE']=='N'){
-									$colsIns=implode(', ', $colsFila);
-									$valsIns=implode(', ', $valuesFila);
-									mysqli_query($lnk,"INSERT INTO $tablaDestino ($colsIns)
-										VALUES ($valsIns)") or die(mysqli_error($lnk));
-								}
-								else{
-									$colsSet=array();
-									foreach ($valuesFila as $key => $value) {
-										$colsSet[]="$key=$value";
-									}
-									$colsSet=implode(', ', $colsSet);
-									mysqli_query($lnk,"UPDATE $tablaDestino
-										SET $colsSet
-										WHERE $tablaDestinoPk=$valuesFila[$tablaDestinoPk]");
-								}
-								break;
-							}
-						}
-
-					}
-				}
-			}
-
-			if(count($this->arrErr)>0){
-				return false;
-			}
-			return true;
+			$cargarDatos = new cargar_datos();
+			$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoPk,$configTablaDestino);
 
 		}
 

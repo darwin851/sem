@@ -64,7 +64,7 @@
 										}
 									}
 									elseif(isset($configHoja[$col]['tablaFk'])){
-										$id=($configHoja[$col]['columnaFkId']?
+										$id=(isset($configHoja[$col]['columnaFkId'])?
 											$configHoja[$col]['columnaFkId']:
 											$configHoja[$col]['columna']);
 										$tabla=$configHoja[$col]['tablaFk'];

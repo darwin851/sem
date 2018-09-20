@@ -8,8 +8,8 @@
 
 		public function cargarArchivoRecursoHumano($nbrArchivo){
 
-			require 'vendor/autoload.php';
-			require 'cargar_datos.php';
+			require_once 'vendor/autoload.php';
+			require_once 'cargar_datos.php';
 
 			$inputFileName = $nbrArchivo;
 			$reader = IOFactory::createReader('Xlsx');
@@ -19,8 +19,8 @@
 			$sheet = $spreadsheet->getActiveSheet();
 
 			$tablaDestino='recurso_humano';
-			$tablaDestinoPk='DOCUMENTO_IDENTIFICACION';
-			$configTablaDestino=array(
+			$tablaDestinoKey='DOCUMENTO_IDENTIFICACION';
+			$configHoja=array(
 				'A' => array(
 					'columna' => 'DOCUMENTO_IDENTIFICACION',
 					'comilla' => true,
@@ -121,7 +121,55 @@
 			);
 
 			$cargarDatos = new cargar_datos();
-			$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoPk,$configTablaDestino);
+			$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
+
+		}
+
+		public function cargarArchivoAsignaturasImpartidas($nbrArchivo){
+
+			require_once 'vendor/autoload.php';
+			require_once 'cargar_datos.php';
+
+			$inputFileName = $nbrArchivo;
+			$reader = IOFactory::createReader('Xlsx');
+			$spreadsheet = $reader->load($inputFileName);
+
+			$spreadsheet->setActiveSheetIndex(0);
+///temporal
+$spreadsheet->setActiveSheetIndex(1);
+$spreadsheet->setActiveSheetIndex(1);
+$spreadsheet->setActiveSheetIndex(1);
+			$sheet = $spreadsheet->getActiveSheet();
+
+			$tablaDestino='asignatura_x_grado_x_recurso_humano';
+			$tablaDestinoKey='ID_RECURSO_HUMANO';
+			$dimHoriz=array(
+				'dimensionHoriz' => 'asignatura',
+				'dimensionHorizId' => 'ID_ASIGNATURA',
+				'dimensionHorizCod' => 'NBR_ASIGNATURA',
+			);
+			$configHoja=array(
+				'A' => array(
+					'dimensionVert' => 'recurso_humano',
+					'dimensionVertId' => 'ID_RECURSO_HUMANO',
+					'dimensionVertCod' => 'DOCUMENTO_IDENTIFICACION',
+				),
+				'B' => array(
+					'dimensionVert' => 'grado',
+					'dimensionVertId' => 'ID_GRADO',
+					'dimensionVertCod' => 'NBR_GRADO',
+				),
+				'C' => $dimHoriz,
+				'D' => $dimHoriz,
+				'E' => $dimHoriz,
+				'F' => $dimHoriz,
+				'G' => $dimHoriz,
+				'H' => $dimHoriz,
+				'I' => $dimHoriz,
+			);
+
+			$cargarDatos = new cargar_datos();
+			$cargarDatos->cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
 
 		}
 
@@ -129,4 +177,5 @@
 
 	$rh = new recurso_humano();
 	$rh->cargarArchivoRecursoHumano('/tmp/cargaDeDatos.xlsx');
+	$rh->cargarArchivoAsignaturasImpartidas('/tmp/cargaDeDatos.xlsx');
 ?>

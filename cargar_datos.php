@@ -7,6 +7,19 @@
 		private $arrTablasIds=array();
 		private $dimHorizontalIds=array();
 
+		public $valoresPermitidosMarca=array(
+			'X',
+			'Si',
+			'Sí',
+			'1',
+		);
+
+		public function __construct(){
+			foreach ($this->valoresPermitidosMarca as $key => $value) {
+				$this->valoresPermitidosMarca[$key]=strtoupper(trim($value));
+			}
+		}
+
 		private function funcionUtf8($v){
 			return utf8_decode($v);
 		}
@@ -34,10 +47,14 @@
 			return $nValue;
 		}
 
-		public function cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja){
+		public function cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$hacerUpdate=true,$permitirDuplicados=false){
 
 			require_once('parts-admin/conexion.php');
 			$lnk=database_connect();
+
+			if($permitirDuplicados==false){
+				$this->datosCargados[$tablaDestino]=array();
+			}
 
 			foreach ($sheet->getRowIterator() as $row){
 				$cellIterator = $row->getCellIterator();
@@ -58,6 +75,9 @@
 							if (isset($configHoja[$col])){
 								if (isset($configHoja[$col]['columna'])){
 									if(!isset($configHoja[$col]['tablaFk'])){
+										if(isset($configHoja[$col]['arrConvertir'])){
+											$value=$configHoja[$col]['arrConvertir'][$value];
+										}
 										$nValue=$value;
 										if($configHoja[$col]['comilla']==true){
 											$nValue="\"" . trim(str_replace('"','\'',$value)) . "\"";
@@ -88,15 +108,38 @@
 									}
 									reset($configHoja[$col]['sql']);
 								}
+								elseif (isset($configHoja[$col]['valorFijo'])){
+									$colsFila[]=$configHoja[$col]['valorFijoColumna'];
+									$valuesFila[$configHoja[$col]['valorFijoColumna']]=$configHoja[$col]['valorFijo'];
+								}
 							}
 							elseif($rowErr==false){
-								$res=mysqli_query($lnk,"SELECT IF(
-									EXISTS(
-										SELECT 1
-										FROM $tablaDestino
-										WHERE $tablaDestinoKey=$valuesFila[$tablaDestinoKey]
-									),'S','N') AS EXISTE") or die(mysqli_error($lnk));
-								$reg=mysqli_fetch_assoc($res);
+								if($permitirDuplicados==false){
+									if($valuesFila[$tablaDestinoKey]!='' && in_array($valuesFila[$tablaDestinoKey], $this->datosCargados[$tablaDestino])){
+										$err="Registro repetido \"$tablaDestino\" (" . $valuesFila[$tablaDestinoKey] . ")";
+										$this->arrErr[]=$err;
+										error_log($err);
+										break;
+									}
+								}
+
+								if($hacerUpdate){
+									$res=mysqli_query($lnk,"SELECT IF(
+										EXISTS(
+											SELECT 1
+											FROM $tablaDestino
+											WHERE $tablaDestinoKey=$valuesFila[$tablaDestinoKey]
+										),'S','N') AS EXISTE") or die(mysqli_error($lnk));
+									$reg=mysqli_fetch_assoc($res);
+								}
+								else{
+									$reg['EXISTE']='N';
+								}
+
+								if($permitirDuplicados==false){
+									$this->datosCargados[$tablaDestino][]=$valuesFila[$tablaDestinoKey];
+								}
+
 								if($reg['EXISTE']=='N'){
 									$colsIns=implode(', ', $colsFila);
 									$valsIns=implode(', ', $valuesFila);
@@ -186,7 +229,7 @@
 									}
 								}
 								elseif (isset($configHoja[$col]['dimensionHoriz'])) {
-									if($value=='X'){
+									if(in_array(strtoupper(trim($value)), $this->valoresPermitidosMarca)){
 										$colsFilaTmp=$colsFila;
 										$valuesFilaTmp=$valuesFila;
 										$colsFilaTmp[]=$configHoja[$col]['dimensionHorizId'];

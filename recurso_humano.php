@@ -173,9 +173,76 @@ $spreadsheet->setActiveSheetIndex(1);
 
 		}
 
+		public function cargarArchivoAsistencia($idJornada,$nbrArchivo){
+
+			require_once('parts-admin/conexion.php');
+			require_once 'vendor/autoload.php';
+			require_once 'cargar_datos.php';
+
+			$inputFileName = $nbrArchivo;
+			$reader = IOFactory::createReader('Xlsx');
+			$spreadsheet = $reader->load($inputFileName);
+
+			$spreadsheet->setActiveSheetIndex(0);
+			$sheet = $spreadsheet->getActiveSheet();
+
+			$lnk=database_connect();
+
+			$res=mysqli_query($lnk,"SELECT J.ID_JORNADA, T.CANTIDAD_HORAS_MANNANA, T.CANTIDAD_HORAS_TARDE
+				FROM jornada J, tipo_jornada T
+				WHERE J.ID_JORNADA=$idJornada
+				AND J.ID_TIPO_JORNADA=T.ID_TIPO_JORNADA") or die(mysqli_error($lnk));
+			if($reg=mysqli_fetch_assoc($res)){
+				$cargarDatos = new cargar_datos();
+
+				$tablaDestino='recurso_humano_x_jornada';
+				$tablaDestinoKey='ID_RECURSO_HUMANO_PARTICIPANTE';
+				$configHoja=array(
+					'A' => array(
+						'columna' => 'ID_RECURSO_HUMANO_PARTICIPANTE',
+						'comilla' => false,
+						'tablaFk' => 'recurso_humano',
+						'columnaFkCod' => 'DOCUMENTO_IDENTIFICACION',
+						'columnaFkId' => 'ID_RECURSO_HUMANO',
+					),
+				);
+				$colSig='B';
+				$arrConvertir=array(
+					'' => 0,
+				);
+				foreach ($cargarDatos->valoresPermitidosMarca as $key => $value) {
+					$arrConvertir[trim($value)]=1;
+				}
+
+				foreach (array('CANTIDAD_HORAS_MANNANA','CANTIDAD_HORAS_TARDE') as $value) {
+					if($reg[$value]>0){
+						$configHoja[$colSig]=array(
+							'columna' =>  str_replace('CANTIDAD_HORAS_','PARTICIPACION_', $value),
+							'comilla' => false,
+							'arrConvertir' => $arrConvertir,
+						);
+						$colSig=chr(ord($colSig)+1);
+					}
+				}
+				$configHoja[$colSig]=array(
+					'valorFijo' => $idJornada,
+					'valorFijoColumna' => 'ID_JORNADA',
+					'comilla' => false,
+				);
+
+				mysqli_query($lnk,"DELETE FROM recurso_humano_x_jornada
+					WHERE ID_JORNADA=$idJornada") or die(mysqli_error($lnk));
+				$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,false);
+			}
+
+		}
+
 	}
 
 	$rh = new recurso_humano();
 	$rh->cargarArchivoRecursoHumano('/tmp/cargaDeDatos.xlsx');
 	$rh->cargarArchivoAsignaturasImpartidas('/tmp/cargaDeDatos.xlsx');
+	$rh->cargarArchivoAsistencia(1,'/tmp/asistencia.xlsx');
+	$rh->cargarArchivoAsistencia(2,'/tmp/asistencia.xlsx');
+	$rh->cargarArchivoAsistencia(3,'/tmp/asistencia.xlsx');
 ?>

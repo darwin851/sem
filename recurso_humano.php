@@ -233,16 +233,18 @@ $spreadsheet->setActiveSheetIndex(1);
 				mysqli_query($lnk,"DELETE FROM recurso_humano_x_jornada
 					WHERE ID_JORNADA=$idJornada") or die(mysqli_error($lnk));
 				$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,false);
+
+				return $cargarDatos->getArrErr();
 			}
 
 		}
 
 	}
 
-	$rh = new recurso_humano();
-	$rh->cargarArchivoRecursoHumano('/tmp/cargaDeDatos.xlsx');
-	$rh->cargarArchivoAsignaturasImpartidas('/tmp/cargaDeDatos.xlsx');
-	$rh->cargarArchivoAsistencia(1,'/tmp/asistencia.xlsx');
-	$rh->cargarArchivoAsistencia(2,'/tmp/asistencia.xlsx');
-	$rh->cargarArchivoAsistencia(3,'/tmp/asistencia.xlsx');
+	//$rh = new recurso_humano();
+	//$rh->cargarArchivoRecursoHumano('/tmp/cargaDeDatos.xlsx');
+	//$rh->cargarArchivoAsignaturasImpartidas('/tmp/cargaDeDatos.xlsx');
+	//$rh->cargarArchivoAsistencia(1,'/tmp/asistencia.xlsx');
+	//$rh->cargarArchivoAsistencia(2,'/tmp/asistencia.xlsx');
+	//$rh->cargarArchivoAsistencia(3,'/tmp/asistencia.xlsx');
 ?>

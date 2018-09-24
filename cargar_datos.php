@@ -47,6 +47,10 @@
 			return $nValue;
 		}
 
+		public function getArrErr(){
+			return $this->arrErr;
+		}
+
 		public function cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$hacerUpdate=true,$permitirDuplicados=false){
 
 			require_once('parts-admin/conexion.php');

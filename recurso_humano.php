@@ -123,6 +123,8 @@
 			$cargarDatos = new cargar_datos();
 			$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
 
+			return $cargarDatos->getArrErr();
+
 		}
 
 		public function cargarArchivoAsignaturasImpartidas($nbrArchivo){
@@ -135,10 +137,6 @@
 			$spreadsheet = $reader->load($inputFileName);
 
 			$spreadsheet->setActiveSheetIndex(0);
-///temporal
-$spreadsheet->setActiveSheetIndex(1);
-$spreadsheet->setActiveSheetIndex(1);
-$spreadsheet->setActiveSheetIndex(1);
 			$sheet = $spreadsheet->getActiveSheet();
 
 			$tablaDestino='asignatura_x_grado_x_recurso_humano';
@@ -170,6 +168,8 @@ $spreadsheet->setActiveSheetIndex(1);
 
 			$cargarDatos = new cargar_datos();
 			$cargarDatos->cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
+
+			return $cargarDatos->getArrErr();
 
 		}
 

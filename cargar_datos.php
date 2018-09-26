@@ -3,6 +3,7 @@
 	class cargar_datos{
 
 		private $arrErr=array();
+		private $preview='';
 
 		private $arrTablasIds=array();
 		private $dimHorizontalIds=array();
@@ -47,11 +48,37 @@
 			return $nValue;
 		}
 
+		private function generarPreview($configHoja,$sheetArr){
+			$previewTable='<table>';
+			$previewTable.='<tr>';
+			foreach ($configHoja as $value) {
+				if(!isset($value['valorFijo'])){
+					$previewTable.='<th>' . ($value['dimensionVertHuman']?$value['dimensionVertHuman']:
+						($value['dimensionHorizHuman']?$value['dimensionHorizHuman']:
+						($value['columnaHuman']?$value['columnaHuman']:$value['columna']))) . '</th>';
+				}
+			}
+			$previewTable.='</tr>';
+			foreach ($sheetArr as $fila) {
+				$previewTable.='<tr>';
+				foreach ($fila as $columna) {
+					$previewTable.='<td>' . $columna . '</td>';
+				}
+				$previewTable.='</tr>';
+			}
+			$previewTable.='</table>';
+			$this->preview=$previewTable;
+		}
+
 		public function getArrErr(){
 			return $this->arrErr;
 		}
 
-		public function cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$hacerUpdate=true,$permitirDuplicados=false){
+		public function getPreview(){
+			return $this->preview;
+		}
+
+		public function cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$hacerUpdate=true,$permitirDuplicados=false,$preview=false){
 
 			require_once('parts-admin/conexion.php');
 			$lnk=database_connect();
@@ -60,11 +87,12 @@
 				$this->datosCargados[$tablaDestino]=array();
 			}
 
+			$sheetArr=array();
 			foreach ($sheet->getRowIterator() as $row){
 				$cellIterator = $row->getCellIterator();
 				$cellIterator->setIterateOnlyExistingCells(false);
 				$rowErr=false;
-				$arrSql=$colsFila=$valuesFila=array();
+				$arrSql=$colsFila=$valuesFila=$rowArr=array();
 				foreach ($cellIterator as $cell){
 					$nValue='';
 					if (!is_null($cell)){
@@ -77,6 +105,12 @@
 						}
 						else{
 							if (isset($configHoja[$col])){
+								if($configHoja[$col]['columna']!=''){
+									$rowArr[$configHoja[$col]['columna']]=$value;
+								}
+								elseif($configHoja[$col]['tablaHija']!=''){
+									$rowArr[$configHoja[$col]['tablaHija']]=$value;
+								}
 								if (isset($configHoja[$col]['columna'])){
 									if(!isset($configHoja[$col]['tablaFk'])){
 										if(isset($configHoja[$col]['arrConvertir'])){
@@ -97,6 +131,9 @@
 										if ($nValue===false) {
 											$rowErr=true;
 										}
+										else{
+											$rowArr[$configHoja[$col]['columna']]=$value;
+										}
 									}
 									$colsFila[]=$configHoja[$col]['columna'];
 									$valuesFila[$configHoja[$col]['columna']]=$this->funcionUtf8($nValue);
@@ -107,8 +144,10 @@
 										$ids[$k]="'$v'";
 									}
 									$ids=implode(',', $ids);
-									foreach ($configHoja[$col]['sql'] as $sql) {
-										$arrSql[]=str_replace('{pk}',$valuesFila[$tablaDestinoKey],str_replace('{ids}',$ids,$sql));
+									if(!$preview){
+										foreach ($configHoja[$col]['sql'] as $sql) {
+											$arrSql[]=str_replace('{pk}',$valuesFila[$tablaDestinoKey],str_replace('{ids}',$ids,$sql));
+										}
 									}
 									reset($configHoja[$col]['sql']);
 								}
@@ -120,7 +159,7 @@
 							elseif($rowErr==false){
 								if($permitirDuplicados==false){
 									if($valuesFila[$tablaDestinoKey]!='' && in_array($valuesFila[$tablaDestinoKey], $this->datosCargados[$tablaDestino])){
-										$err="Registro repetido \"$tablaDestino\" (" . $valuesFila[$tablaDestinoKey] . ")";
+										$err='Registro repetido: ' . $rowArr[$tablaDestinoKey];
 										$this->arrErr[]=$err;
 										error_log($err);
 										break;
@@ -147,8 +186,10 @@
 								if($reg['EXISTE']=='N'){
 									$colsIns=implode(', ', $colsFila);
 									$valsIns=implode(', ', $valuesFila);
-									mysqli_query($lnk,"INSERT INTO $tablaDestino ($colsIns)
-										VALUES ($valsIns)") or die(mysqli_error($lnk));
+									if(!$preview){
+										mysqli_query($lnk,"INSERT INTO $tablaDestino ($colsIns)
+											VALUES ($valsIns)") or die(mysqli_error($lnk));
+									}
 								}
 								else{
 									$colsSet=array();
@@ -156,9 +197,11 @@
 										$colsSet[]="$kf=$vf";
 									}
 									$colsSet=implode(', ', $colsSet);
-									mysqli_query($lnk,"UPDATE $tablaDestino
-										SET $colsSet
-										WHERE $tablaDestinoKey=$valuesFila[$tablaDestinoKey]") or die(mysqli_error($lnk));
+									if(!$preview){
+										mysqli_query($lnk,"UPDATE $tablaDestino
+											SET $colsSet
+											WHERE $tablaDestinoKey=$valuesFila[$tablaDestinoKey]") or die(mysqli_error($lnk));
+									}
 								}
 								foreach ($arrSql as $sql) {
 									mysqli_query($lnk,$sql) or die(mysqli_error($lnk));
@@ -169,26 +212,39 @@
 
 					}
 				}
+				$sheetArr[]=$rowArr;
+			}
+
+			if($preview){
+				$this->generarPreview($configHoja,$sheetArr);
 			}
 
 			if(count($this->arrErr)>0){
-				return false;
+				$estado=false;
 			}
-			return true;
+			else{
+				$estado=true;
+			}
+			return array(
+				'estado' => $estado,
+				'preliminar' => $this->preview,
+				'errores' => implode('<br />', array_unique($this->arrErr)),
+			);
 
 		}
 
-		public function cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja){
+		public function cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$preview){
 
 			require_once('parts-admin/conexion.php');
 			$lnk=database_connect();
 
+			$sheetArr=array();
 			$idTablaDestino=-1;
 			foreach ($sheet->getRowIterator() as $row){
 				$cellIterator = $row->getCellIterator();
 				$cellIterator->setIterateOnlyExistingCells(false);
 				$rowErr=false;
-				$arrSql=$colsFila=$valuesFila=array();
+				$arrSql=$colsFila=$valuesFila=$rowArr=array();
 				foreach ($cellIterator as $cell){
 					$nValue='';
 					if (!is_null($cell)){
@@ -207,6 +263,7 @@
 										if ($nValue===false) {
 											$rowErr=true;
 										}
+										$configHoja[$keyCol]['dimensionHorizHuman']=$value;
 										$this->dimHorizontalIds[$col]=$nValue;
 										break;
 									}
@@ -216,6 +273,12 @@
 						}
 						else{
 							if (isset($configHoja[$col])){
+								if($configHoja[$col]['dimensionHoriz']!=''){
+									$rowArr[$configHoja[$col]['dimensionHorizHuman']]=$value;
+								}
+								elseif($configHoja[$col]['dimensionVert']!=''){
+									$rowArr[$configHoja[$col]['dimensionVert']]=$value;
+								}
 								if (isset($configHoja[$col]['dimensionVert'])) {
 									$tabla=$configHoja[$col]['dimensionVert'];
 									$id=$configHoja[$col]['dimensionVertId'];
@@ -240,15 +303,19 @@
 										$valuesFilaTmp[]=$this->dimHorizontalIds[$col];
 										$colsIns=implode(', ', $colsFilaTmp);
 										$valsIns=implode(', ', $valuesFilaTmp);
-										$arrSql[]="INSERT INTO $tablaDestino ($colsIns)
-											VALUES ($valsIns)";
+										if(!$preview){
+											$arrSql[]="INSERT INTO $tablaDestino ($colsIns)
+												VALUES ($valsIns)";
+										}
 									}
 								}
 							}
 							elseif($rowErr==false){
 								if($idTablaDestino!=$idTablaDestinoAnt){
-									mysqli_query($lnk,"DELETE FROM $tablaDestino
-										WHERE $tablaDestinoKey=$idTablaDestino") or die(mysqli_error($lnk));
+									if(!$preview){
+										mysqli_query($lnk,"DELETE FROM $tablaDestino
+											WHERE $tablaDestinoKey=$idTablaDestino") or die(mysqli_error($lnk));
+									}
 								}
 								foreach ($arrSql as $sql) {
 									mysqli_query($lnk,$sql) or die(mysqli_error($lnk));
@@ -259,12 +326,24 @@
 						}
 					}
 				}
+				$sheetArr[]=$rowArr;
+			}
+
+			if($preview){
+				$this->generarPreview($configHoja,$sheetArr);
 			}
 
 			if(count($this->arrErr)>0){
-				return false;
+				$estado=false;
 			}
-			return true;
+			else{
+				$estado=true;
+			}
+			return array(
+				'estado' => $estado,
+				'preliminar' => $this->preview,
+				'errores' => implode('<br />', array_unique($this->arrErr)),
+			);
 
 		}
 

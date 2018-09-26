@@ -6,7 +6,7 @@
 
 		private $arrErr=array();
 
-		public function cargarArchivoRecursoHumano($nbrArchivo){
+		public function cargarArchivoRecursoHumano($nbrArchivo,$preview){
 
 			require_once 'vendor/autoload.php';
 			require_once 'cargar_datos.php';
@@ -23,55 +23,67 @@
 			$configHoja=array(
 				'A' => array(
 					'columna' => 'DOCUMENTO_IDENTIFICACION',
+					'columnaHuman' => 'Documento',
 					'comilla' => true,
 				),
 				'B' => array(
 					'columna' => 'NOMBRES',
+					'columnaHuman' => 'Nombres',
 					'comilla' => true,
 				),
 				'C' => array(
 					'columna' => 'APELLIDOS',
+					'columnaHuman' => 'Apellidos',
 					'comilla' => true,
 				),
 				'D' => array(
 					'columna' => 'DIRECCION',
+					'columnaHuman' => 'Dirección',
 					'comilla' => true,
 				),
 				'E' => array(
 					'columna' => 'ID_CENTRO_EDUCATIVO',
+					'columnaHuman' => 'Centro educativo',
 					'comilla' => false,
 					'tablaFk' => 'centro_educativo',
 					'columnaFkCod' => 'COD_CENTRO_EDUCATIVO',
 				),
 				'F' => array(
 					'columna' => 'TELEFONO',
+					'columnaHuman' => 'Teléfono',
 					'comilla' => true,
 				),
 				'G' => array(
 					'columna' => 'CELULAR',
+					'columnaHuman' => 'Celular',
 					'comilla' => true,
 				),
 				'H' => array(
 					'columna' => 'CORREO_ELECTRONICO',
+					'columnaHuman' => 'Correo electrónico',
 					'comilla' => true,
 				),
 				'I' => array(
 					'columna' => 'GENERO',
+					'columnaHuman' => 'Género',
 					'comilla' => true,
 				),
 				'J' => array(
 					'columna' => 'TITULO_ACADEMICO',
+					'columnaHuman' => 'Título académico',
 					'comilla' => true,
 				),
 				'K' => array(
 					'columna' => 'ID_MUNICIPIO_RESIDENCIA',
+					'columnaHuman' => 'Municipio residencia',
 					'comilla' => false,
 					'tablaFk' => 'municipio',
 					'columnaFkCod' => 'COD_MUNICIPIO',
 					'columnaFkId' => 'ID_MUNICIPIO',
 				),
 				'L' => array(
-					'tablaHija' => true,
+					'tablaHija' => 'cargo_rol_x_recurso_humano',
+					'columnaHuman' => 'Cargos/roles',
 					'sql' => array(
 						"DELETE cargo_rol_x_recurso_humano
 							FROM cargo_rol_x_recurso_humano, recurso_humano rh, cargo_rol cr
@@ -95,7 +107,8 @@
 					),
 				),
 				'M' => array(
-					'tablaHija' => true,
+					'tablaHija' => 'especialidad_x_recurso_humano',
+					'columnaHuman' => 'Especialidades',
 					'sql' => array(
 						"DELETE especialidad_x_recurso_humano
 							FROM especialidad_x_recurso_humano, recurso_humano rh, asignatura a
@@ -121,13 +134,13 @@
 			);
 
 			$cargarDatos = new cargar_datos();
-			$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
+			$ret=$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,true,false,$preview);
 
-			return $cargarDatos->getArrErr();
+			return $ret;
 
 		}
 
-		public function cargarArchivoAsignaturasImpartidas($nbrArchivo){
+		public function cargarArchivoAsignaturasImpartidas($nbrArchivo,$preview){
 
 			require_once 'vendor/autoload.php';
 			require_once 'cargar_datos.php';
@@ -149,11 +162,13 @@
 			$configHoja=array(
 				'A' => array(
 					'dimensionVert' => 'recurso_humano',
+					'dimensionVertHuman' => 'Documento',
 					'dimensionVertId' => 'ID_RECURSO_HUMANO',
 					'dimensionVertCod' => 'DOCUMENTO_IDENTIFICACION',
 				),
 				'B' => array(
 					'dimensionVert' => 'grado',
+					'dimensionVertHuman' => 'Grado',
 					'dimensionVertId' => 'ID_GRADO',
 					'dimensionVertCod' => 'NBR_GRADO',
 				),
@@ -167,13 +182,13 @@
 			);
 
 			$cargarDatos = new cargar_datos();
-			$cargarDatos->cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja);
+			$ret=$cargarDatos->cargarMatrizDimensiones($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,$preview);
 
-			return $cargarDatos->getArrErr();
+			return $ret;
 
 		}
 
-		public function cargarArchivoAsistencia($idJornada,$nbrArchivo){
+		public function cargarArchivoAsistencia($idJornada,$nbrArchivo,$preview){
 
 			require_once('parts-admin/conexion.php');
 			require_once 'vendor/autoload.php';
@@ -200,6 +215,7 @@
 				$configHoja=array(
 					'A' => array(
 						'columna' => 'ID_RECURSO_HUMANO_PARTICIPANTE',
+						'columnaHuman' => 'Documento',
 						'comilla' => false,
 						'tablaFk' => 'recurso_humano',
 						'columnaFkCod' => 'DOCUMENTO_IDENTIFICACION',
@@ -214,10 +230,14 @@
 					$arrConvertir[trim($value)]=1;
 				}
 
-				foreach (array('CANTIDAD_HORAS_MANNANA','CANTIDAD_HORAS_TARDE') as $value) {
-					if($reg[$value]>0){
+				foreach (array(
+					'CANTIDAD_HORAS_MANNANA' => array('col' => 'PARTICIPACION_MANNANA', 'colH' => 'Participación mañana'),
+					'CANTIDAD_HORAS_TARDE' => array('col' => 'PARTICIPACION_TARDE', 'colH' => 'Participación tarde'),
+				) as $key => $value) {
+					if($reg[$key]>0){
 						$configHoja[$colSig]=array(
-							'columna' =>  str_replace('CANTIDAD_HORAS_','PARTICIPACION_', $value),
+							'columna' =>  $value['col'],
+							'columnaHuman' => $value['colH'],
 							'comilla' => false,
 							'arrConvertir' => $arrConvertir,
 						);
@@ -232,9 +252,9 @@
 
 				mysqli_query($lnk,"DELETE FROM recurso_humano_x_jornada
 					WHERE ID_JORNADA=$idJornada") or die(mysqli_error($lnk));
-				$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,false);
+				$ret=$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,false,false,$preview);
 
-				return $cargarDatos->getArrErr();
+				return $ret;
 			}
 
 		}

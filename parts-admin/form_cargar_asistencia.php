@@ -44,6 +44,8 @@
 									</div>
 									<div class="module-content-inner sectiontwo col-md-5">
 									</div>
+									<div id="preview" class="module-content-inner col-md-12">
+									</div>
 <!-- estos botones se muestran hasta abajo -->
 									<button type="submit" class="btn btn-primary" onclick="procesarFormularioCarga('previsualizar_asistencia'); return false;">Previsualizar</button>
 									<button type="submit" class="btn btn-primary" onclick="procesarFormularioCarga('cargar_asistencia'); return false;">Cargar archivo</button>
@@ -108,29 +110,25 @@
 			request.open("POST", "parts-admin/cargar_asistencia.php");
 			request.send(formData);
 
-			switch(modo){
-				case 'previsualizar_asistencia':
-					$('#alerta_form').html('Previsualización aún no implementada');
-					$('#alerta_form').show();
-					$('html,body').scrollTop(0);
-					break;
-				case 'cargar_asistencia':
-					request.onload = function(oEvent) {
-						if(request.responseText!=''){
-							$('#error_form').html(request.responseText);
-							$('#error_form').show();
-						}
-						else{
-							$('#exito_form').html('Archivo cargado con éxito');
-							$('#exito_form').show();
-						}
-						$('html,body').scrollTop(0);
-						$('#taller_curso_select').val('');
-						$('#jornada_select').val('');
-						$('#archivo_participantes').val('');
-					};
-					break;
-			}
+			request.onload = function(oEvent) {
+				var jsonArr = JSON.parse(request.responseText);
+				if(jsonArr.estado==false){
+					$('#error_form').html(jsonArr.errores);
+					$('#error_form').show();
+				}
+				else{
+					$('#exito_form').html('Archivo cargado con éxito');
+					$('#exito_form').show();
+				}
+				$('#preview').html(jsonArr.preliminar);
+				$('html,body').scrollTop(0);
+
+				if(modo=='cargar_asistencia'){
+					$('#taller_curso_select').val('');
+					$('#jornada_select').val('');
+					$('#archivo_participantes').val('');
+				}
+			};
 		}
 	}
 </script>

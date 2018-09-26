@@ -21,16 +21,18 @@
 				$output.="<option value=\"$value\">$label</option>";
 			}
 			break;
+		case 'previsualizar_asistencia':
+			$preview=true;
 		case 'cargar_asistencia':
+			if(!isset($preview)){
+				$preview=false;
+			}
 			require('../recurso_humano.php');
 			$idJornada=$_POST['idJornada'];
-			$output='';
+			$json='';
 			$rh = new recurso_humano();
 			foreach ($_FILES as $file) {
-				$carga=$rh->cargarArchivoAsistencia($idJornada,$file['tmp_name']);
-				foreach ($carga as $cg) {
-					$output.=$cg . '<br />';
-				}
+				$json=$rh->cargarArchivoAsistencia($idJornada,$file['tmp_name'],$preview);
 			}
 			break;
 	}
@@ -38,5 +40,10 @@
 	if(isset($output)){
 		header("Content-Type: text/html; charset=UTF-8\r\n");
 		echo $output;
+	}
+
+	if(isset($json)){
+		header('Content-Type: application/json');
+		echo json_encode($json);
 	}
 ?>

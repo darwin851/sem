@@ -37,6 +37,8 @@
 									</div>
 									<div class="module-content-inner sectiontwo col-md-5">
 									</div>
+									<div id="preview" class="module-content-inner col-md-12">
+									</div>
 <!-- estos botones se muestran hasta abajo -->
 									<button type="submit" class="btn btn-primary" onclick="procesarFormularioCarga('previsualizar_recurso_humano'); return false;">Previsualizar</button>
 									<button type="submit" class="btn btn-primary" onclick="procesarFormularioCarga('cargar_recurso_humano'); return false;">Cargar archivo</button>
@@ -86,28 +88,25 @@
 			request.open("POST", "parts-admin/cargar_recurso_humano.php");
 			request.send(formData);
 
-			switch(modo){
-				case 'previsualizar_recurso_humano':
-					$('#alerta_form').html('Previsualización aún no implementada');
-					$('#alerta_form').show();
-					$('html,body').scrollTop(0);
-					break;
-				case 'cargar_recurso_humano':
-					request.onload = function(oEvent) {
-						if(request.responseText!=''){
-							$('#error_form').html(request.responseText);
-							$('#error_form').show();
-						}
-						else{
-							$('#exito_form').html('Archivo cargado con éxito');
-							$('#exito_form').show();
-						}
-						$('html,body').scrollTop(0);
-						$('#tipo_archivo_select').val('');
-						$('#archivo_recurso_huamno').val('');
-					};
-					break;
-			}
+			request.onload = function(oEvent) {
+				var jsonArr = JSON.parse(request.responseText);
+				if(jsonArr.estado==false){
+					$('#error_form').html(jsonArr.errores);
+					$('#error_form').show();
+				}
+				else{
+					$('#exito_form').html('Archivo cargado con éxito');
+					$('#exito_form').show();
+				}
+				$('#preview').html(jsonArr.preliminar);
+				$('html,body').scrollTop(0);
+
+				if(modo=='cargar_recurso_humano'){
+					$('#tipo_archivo_select').val('');
+					$('#archivo_recurso_huamno').val('');
+				}
+			};
+
 		}
 	}
 </script>

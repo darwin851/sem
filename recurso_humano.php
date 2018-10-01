@@ -259,6 +259,54 @@
 
 		}
 
+		public function cargarArchivoNotas($idTallerCurso,$nbrArchivo,$preview){
+
+			require_once('parts-admin/conexion.php');
+			require_once 'vendor/autoload.php';
+			require_once 'cargar_datos.php';
+
+			$inputFileName = $nbrArchivo;
+			$reader = IOFactory::createReader('Xlsx');
+			$spreadsheet = $reader->load($inputFileName);
+
+			$spreadsheet->setActiveSheetIndex(0);
+			$sheet = $spreadsheet->getActiveSheet();
+
+			$lnk=database_connect();
+
+			$cargarDatos = new cargar_datos();
+
+			$tablaDestino='recurso_humano_x_taller_curso';
+			$tablaDestinoKey='ID_RECURSO_HUMANO_PARTICIPANTE';
+			$configHoja=array(
+				'A' => array(
+					'columna' => 'ID_RECURSO_HUMANO_PARTICIPANTE',
+					'columnaHuman' => 'Documento',
+					'comilla' => false,
+					'tablaFk' => 'recurso_humano',
+					'columnaFkCod' => 'DOCUMENTO_IDENTIFICACION',
+					'columnaFkId' => 'ID_RECURSO_HUMANO',
+				),
+				'B' => array(
+					'columna' =>  'NOTA',
+					'columnaHuman' => 'Nota',
+					'comilla' => false,
+				),
+				'C' => array(
+					'valorFijo' => $idTallerCurso,
+					'valorFijoColumna' => 'ID_TALLER_CURSO',
+					'comilla' => false,
+				),
+			);
+
+			mysqli_query($lnk,"DELETE FROM recurso_humano_x_taller_curso
+				WHERE ID_TALLER_CURSO=$idTallerCurso") or die(mysqli_error($lnk));
+			$ret=$cargarDatos->cargarListado($sheet,$tablaDestino,$tablaDestinoKey,$configHoja,false,false,$preview);
+
+			return $ret;
+
+		}
+
 	}
 
 	//$rh = new recurso_humano();
